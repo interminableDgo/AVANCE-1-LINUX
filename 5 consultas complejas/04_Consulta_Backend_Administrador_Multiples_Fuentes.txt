@@ -1,0 +1,170 @@
+CONSULTA COMPLEJA #4: BACKEND ADMINISTRADOR CON MÚLTIPLES FUENTES DE DATOS
+================================================================================
+
+ARCHIVO: backend administrador/cmd/server/main.go
+FUNCIÓN: Múltiples handlers para diferentes tipos de datos
+COMPLEJIDAD: ALTA - Integración de PostgreSQL, InfluxDB y múltiples endpoints
+
+DESCRIPCIÓN:
+Este backend administrador maneja consultas complejas a múltiples bases de datos (PostgreSQL e InfluxDB),
+proporcionando una API unificada para gestión de usuarios, datos de series temporales y análisis de KPIs.
+
+CONSULTAS INFLUXDB UTILIZADAS:
+
+1. QUERY PARA DATOS GPS:
+```go
+query := fmt.Sprintf(`from(bucket:"my_app_raw_data")
+    |> range(start: -24h)
+    |> filter(fn: (r) => r["_measurement"] == "gps_data")
+    |> filter(fn: (r) => r["patient_id"] == "%s")
+    |> limit(n: %s)`, patientID, limit)
+```
+
+2. QUERY PARA SIGNOS VITALES:
+```go
+query := fmt.Sprintf(`from(bucket:"my_app_raw_data")
+    |> range(start: -24h)
+    |> filter(fn: (r) => r["_measurement"] == "vital_signs")
+    |> filter(fn: (r) => r["patient_id"] == "%s")
+    |> limit(n: %s)`, patientID, limit)
+```
+
+3. QUERY PARA KPIs Y RIESGO:
+```go
+query := fmt.Sprintf(`from(bucket:"my_app_processed_data")
+    |> range(start: -7d)
+    |> filter(fn: (r) => r["_measurement"] == "kpi_risk")
+    |> filter(fn: (r) => r["patient_id"] == "%s")
+    |> limit(n: %s)`, patientID, limit)
+```
+
+CONSULTAS POSTGRESQL UTILIZADAS:
+
+1. QUERY PARA OBTENER USUARIOS:
+```sql
+SELECT id, username, email, role, created_at, updated_at 
+FROM users 
+ORDER BY created_at DESC
+```
+
+2. QUERY PARA CREAR USUARIO:
+```sql
+INSERT INTO users (username, email, password_hash, role) 
+VALUES ($1, $2, $3, $4) 
+RETURNING id, username, email, role, created_at, updated_at
+```
+
+3. QUERY PARA OBTENER USUARIO POR ID:
+```sql
+SELECT id, username, email, role, created_at, updated_at 
+FROM users 
+WHERE id = $1
+```
+
+ARQUITECTURA COMPLEJA:
+
+1. INTEGRACIÓN MULTI-BASE DE DATOS:
+   - PostgreSQL: Datos relacionales de usuarios
+   - InfluxDB: Series temporales de salud y GPS
+   - Conexiones simultáneas mantenidas
+
+2. MANEJO DE CONEXIONES:
+   - Pool de conexiones PostgreSQL (pgxpool)
+   - Cliente InfluxDB con health checks
+   - Verificación de estado de servicios
+
+3. PROCESAMIENTO DE DATOS HETEROGÉNEOS:
+   - Datos estructurados (PostgreSQL)
+   - Series temporales (InfluxDB)
+   - Conversión de tipos de datos
+   - Validación de integridad
+
+ESTRUCTURAS DE DATOS MANEJADAS:
+
+1. USUARIOS (PostgreSQL):
+   - ID, username, email, role
+   - Timestamps de creación/actualización
+   - Hash de contraseñas
+
+2. DATOS GPS (InfluxDB):
+   - Patient ID, latitude, longitude
+   - Timestamp de registro
+   - Medición: gps_data
+
+3. SIGNOS VITALES (InfluxDB):
+   - Patient ID, heart_rate, blood_oxygen, temperature
+   - Timestamp de registro
+   - Medición: vital_signs
+
+4. KPIs Y RIESGO (InfluxDB):
+   - Patient ID, risk_score, category
+   - Timestamp de registro
+   - Medición: kpi_risk
+
+ENDPOINTS COMPLEJOS:
+
+1. /api/users (GET):
+   - Lista todos los usuarios
+   - Ordenamiento por fecha de creación
+   - Respuesta JSON estructurada
+
+2. /api/users (POST):
+   - Creación de usuarios
+   - Hash de contraseñas
+   - Validación de datos
+
+3. /api/users/{id} (GET):
+   - Obtención de usuario específico
+   - Manejo de errores 404
+   - Respuesta JSON individual
+
+4. /api/gps (GET):
+   - Datos GPS de las últimas 24 horas
+   - Filtrado por paciente
+   - Límite configurable de registros
+
+5. /api/vitals (GET):
+   - Signos vitales de las últimas 24 horas
+   - Filtrado por paciente
+   - Conversión de tipos de datos
+
+6. /api/kpis (GET):
+   - KPIs de los últimos 7 días
+   - Filtrado por paciente
+   - Datos procesados y agregados
+
+CARACTERÍSTICAS TÉCNICAS:
+
+1. MANEJO DE ERRORES:
+   - Logging detallado de errores
+   - Respuestas HTTP apropiadas
+   - Manejo de conexiones fallidas
+
+2. SEGURIDAD:
+   - Hash de contraseñas
+   - Validación de entrada
+   - Headers de respuesta apropiados
+
+3. PERFORMANCE:
+   - Pool de conexiones PostgreSQL
+   - Límites configurables en consultas
+   - Cierre apropiado de recursos
+
+4. MONITOREO:
+   - Health checks de InfluxDB
+   - Logging de operaciones
+   - Métricas de rendimiento
+
+CASOS DE USO:
+- Administración de usuarios del sistema
+- Monitoreo de datos de salud en tiempo real
+- Análisis de patrones de movimiento
+- Generación de reportes médicos
+- API para aplicaciones frontend y móviles
+
+NOTAS TÉCNICAS:
+- Servidor HTTP nativo de Go
+- Manejadores de rutas personalizados
+- Conversión de tipos de datos InfluxDB
+- Manejo de contextos para cancelación
+- Configuración mediante variables de entorno

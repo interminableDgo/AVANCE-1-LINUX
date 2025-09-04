@@ -1,0 +1,131 @@
+CONSULTA COMPLEJA #3: CÁLCULO DE MÉTRICAS CON PROCESAMIENTO DE SERIES TEMPORALES
+====================================================================================
+
+ARCHIVO: microservicios/CalculoMetricas/app.py
+FUNCIÓN: calculate_daily_metrics()
+COMPLEJIDAD: ALTA - Procesamiento de series temporales, cálculos matemáticos y métricas de actividad
+
+DESCRIPCIÓN:
+Este microservicio calcula métricas diarias complejas para un paciente específico, procesando
+datos de series temporales de vitales y GPS, aplicando algoritmos matemáticos y generando
+métricas de salud y actividad física.
+
+CONSULTAS INFLUXDB UTILIZADAS:
+
+1. QUERY PARA VITALES DIARIOS:
+```flux
+from(bucket: "my_app_raw_data")
+  |> range(start: {start_date}, stop: {end_date})
+  |> filter(fn: (r) => r["_measurement"] == "vitals")
+  |> filter(fn: (r) => r["patient_id"] == "{patient_id}")
+  |> sort(columns: ["_time"])
+```
+
+2. QUERY PARA GPS DIARIOS:
+```flux
+from(bucket: "my_app_raw_data")
+  |> range(start: {start_date}, stop: {end_date})
+  |> filter(fn: (r) => r["_measurement"] == "gps")
+  |> filter(fn: (r) => r["patient_id"] == "{patient_id}")
+  |> sort(columns: ["_time"])
+```
+
+PROCESAMIENTO COMPLEJO DE SERIES TEMPORALES:
+
+1. AGRUPACIÓN TEMPORAL DE DATOS GPS:
+   - Agrupación por timestamp exacto
+   - Separación de campos lat/lon por registro
+   - Validación de coordenadas completas
+   - Ordenamiento cronológico estricto
+
+2. CÁLCULOS DE DISTANCIA Y ACTIVIDAD:
+   - Algoritmo Haversine para distancias GPS
+   - Umbral de movimiento configurable (10 metros)
+   - Clasificación de períodos activos/sedentarios
+   - Cálculo de tiempo total en cada categoría
+
+3. ANÁLISIS DE DATOS VITALES:
+   - Agregación de frecuencias cardíacas
+   - Detección de valores anómalos (>100 bpm)
+   - Cálculo de estadísticas descriptivas
+   - Presión arterial sistólica y diastólica
+
+4. MÉTRICAS DE SALUD COMPUESTAS:
+   - Presión arterial media: (SBP + 2*DBP) / 3
+   - Porcentaje de tiempo con frecuencia alta
+   - Score de riesgo basado en múltiples factores
+   - Categorización de riesgo (low/medium/high)
+
+ESTRUCTURA DE DATOS PROCESADOS:
+
+1. MÉTRICAS VITALES:
+   - Frecuencia cardíaca promedio
+   - Conteo de episodios de frecuencia alta
+   - Presión arterial sistólica promedio
+   - Presión arterial diastólica promedio
+
+2. MÉTRICAS DE ACTIVIDAD:
+   - Distancia total recorrida (metros)
+   - Tiempo activo (minutos)
+   - Tiempo sedentario (minutos)
+   - Número de períodos de movimiento
+
+3. SCORES DE RIESGO:
+   - Factores de riesgo individuales
+   - Score compuesto (0.2 - 1.0)
+   - Categoría de riesgo
+   - Timestamp de evaluación
+
+ALGORITMOS MATEMÁTICOS IMPLEMENTADOS:
+
+1. FÓRMULA HAVERSINE:
+   - Radio de la Tierra: 6,371,000 metros
+   - Conversión de coordenadas geográficas
+   - Cálculo de distancia esférica
+
+2. SCORE DE RIESGO:
+   - Base: 0.2 (riesgo mínimo)
+   - Incrementos: 0.2 por factor de riesgo
+   - Máximo: 1.0 (riesgo máximo)
+   - Factores: HR alta, %HR alta, PA alta, sedentarismo
+
+3. MÉTRICAS DE ACTIVIDAD:
+   - Umbral de movimiento: 10 metros
+   - Resolución temporal: 30 segundos por punto
+   - Conversión a minutos
+
+BUCKET FUENTE: my_app_raw_data
+BUCKET DESTINO: my_app_processed_data
+FRECUENCIA: Diaria (procesamiento automático)
+TIEMPO DE PROCESAMIENTO: Variable según volumen de datos
+
+CARACTERÍSTICAS TÉCNICAS:
+
+1. MANEJO DE ERRORES:
+   - Logging detallado de errores
+   - Continuación en modo degradado
+   - Validación de datos antes de procesamiento
+
+2. OPTIMIZACIÓN DE MEMORIA:
+   - Procesamiento por lotes
+   - Agrupación temporal eficiente
+   - Liberación de recursos
+
+3. ESCALABILIDAD:
+   - Procesamiento asíncrono
+   - Threading para múltiples pacientes
+   - Configuración de parámetros
+
+CASOS DE USO:
+- Monitoreo diario de salud del paciente
+- Análisis de patrones de actividad
+- Detección temprana de riesgos
+- Generación de reportes médicos
+- Integración con sistemas de alerta
+
+NOTAS TÉCNICAS:
+- Utiliza InfluxDB Write API síncrono
+- Procesamiento de series temporales en tiempo real
+- Algoritmos matemáticos optimizados
+- Manejo robusto de datos faltantes
+- Validación de integridad de datos

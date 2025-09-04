@@ -1,0 +1,80 @@
+CONSULTA COMPLEJA #1: PROCESAMIENTO DE KPIs DIARIOS CON CÁLCULOS AVANZADOS
+================================================================================
+
+ARCHIVO: llenado_KPIs_Risk_Diario_InfluxBDbucket.py
+FUNCIÓN: process_daily_data()
+COMPLEJIDAD: ALTA - Incluye múltiples consultas, cálculos matemáticos complejos y agregaciones
+
+DESCRIPCIÓN:
+Esta consulta procesa datos de 7 días consecutivos, calculando métricas avanzadas de salud y actividad
+física para un paciente específico. Combina datos de vitales y GPS para generar KPIs y scores de riesgo.
+
+CONSULTAS INFLUXDB UTILIZADAS:
+
+1. QUERY PARA VITALES DEL DÍA:
+```flux
+from(bucket: "my_app_raw_data")
+  |> range(start: {start_date}, stop: {end_date})
+  |> filter(fn: (r) => r["_measurement"] == "vitals")
+  |> filter(fn: (r) => r["patient_id"] == "{patient_uuid}")
+  |> sort(columns: ["_time"])
+```
+
+2. QUERY PARA GPS DEL DÍA:
+```flux
+from(bucket: "my_app_raw_data")
+  |> range(start: {start_date}, stop: {end_date})
+  |> filter(fn: (r) => r["_measurement"] == "gps")
+  |> filter(fn: (r) => r["patient_id"] == "{patient_uuid}")
+  |> sort(columns: ["_time"])
+```
+
+CÁLCULOS COMPLEJOS REALIZADOS:
+
+1. DISTANCIA HAVERSINE:
+   - Fórmula matemática para calcular distancia entre coordenadas GPS
+   - Radio de la Tierra: 6,371,000 metros
+   - Conversión de grados a radianes
+   - Cálculo de distancia total recorrida por día
+
+2. MÉTRICAS DE ACTIVIDAD:
+   - Umbral de movimiento: 10 metros
+   - Períodos activos vs sedentarios
+   - Tiempo activo/sedentario en minutos
+
+3. SCORE DE RIESGO:
+   - Factores de riesgo basados en múltiples métricas
+   - Frecuencia cardíaca alta (>100 bpm)
+   - Porcentaje de tiempo con frecuencia alta (>10%)
+   - Presión arterial sistólica alta (>130 mmHg)
+   - Tiempo sedentario excesivo (>12 horas)
+
+4. KPIs CALCULADOS:
+   - Frecuencia cardíaca promedio
+   - Distancia total recorrida
+   - Porcentaje de frecuencia cardíaca alta
+   - Presión arterial promedio
+   - Conteo de alertas diarias
+   - Tiempo sedentario y activo
+
+ESTRUCTURA DE DATOS GENERADA:
+
+1. Punto KPI_daily:
+   - Tags: patient_id
+   - Fields: average_heart_rate, total_distance_traveled, high_heart_rate_percentage,
+            average_arterial_pressure, daily_alert_count, time_sedentary, time_active
+
+2. Punto Risk_inference:
+   - Tags: patient_id, model_name, model_version, risk_label
+   - Fields: risk_score, risk_level
+
+BUCKET DESTINO: my_app_processed_data
+FRECUENCIA: Diaria (procesa 7 días consecutivos)
+TIEMPO DE PROCESAMIENTO: Variable según cantidad de datos
+
+NOTAS TÉCNICAS:
+- Utiliza WritePrecision.S para timestamps
+- Manejo de errores robusto para cada tipo de dato
+- Agrupación temporal de datos GPS por timestamp
+- Validación de coordenadas GPS antes de cálculos
+- Cálculo de presión arterial media usando fórmula médica estándar

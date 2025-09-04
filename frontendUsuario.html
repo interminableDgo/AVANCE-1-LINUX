@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Usuario - Sistema de Monitoreo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            --card-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.12);
+            --border-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background: var(--primary-gradient);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: none;
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: white !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover {
+            color: white !important;
+            transform: translateY(-1px);
+        }
+
+        .dropdown-menu {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            margin: 0.25rem;
+            transition: var(--transition);
+        }
+
+        .dropdown-item:hover {
+            background: var(--primary-gradient);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .container {
+            max-width: 1400px;
+        }
+
+        .page-header {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: none;
+        }
+
+        .page-title {
+            font-weight: 700;
+            color: #2d3748;
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .refresh-btn {
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            padding: 0.875rem 1.75rem;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .metric-card {
+            background: white;
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            overflow: hidden;
+            position: relative;
+            height: 100%;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .metric-card .card-body {
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+
+        .metric-card i {
+            font-size: 2.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #718096;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-normal { 
+            background: var(--success-gradient);
+            box-shadow: 0 2px 8px rgba(79, 172, 254, 0.4);
+        }
+        
+        .status-warning { 
+            background: var(--warning-gradient);
+            box-shadow: 0 2px 8px rgba(67, 233, 123, 0.4);
+        }
+        
+        .status-danger { 
+            background: var(--danger-gradient);
+            box-shadow: 0 2px 8px rgba(250, 112, 154, 0.4);
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            border: none;
+            transition: var(--transition);
+            height: 100%;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .chart-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .chart-title i {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        .info-card {
+            background: white;
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .info-card .card-body {
+            padding: 2rem;
+        }
+
+        .info-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .info-title i {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .bg-success {
+            background: var(--success-gradient) !important;
+        }
+
+        .bg-info {
+            background: var(--primary-gradient) !important;
+        }
+
+        .bg-warning {
+            background: var(--warning-gradient) !important;
+        }
+
+        .text-muted {
+            color: #718096 !important;
+        }
+
+        /* Animaciones */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .metric-card, .chart-container, .info-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .metric-card:nth-child(1) { animation-delay: 0.1s; }
+        .metric-card:nth-child(2) { animation-delay: 0.2s; }
+        .metric-card:nth-child(3) { animation-delay: 0.3s; }
+        .metric-card:nth-child(4) { animation-delay: 0.4s; }
+        .chart-container:nth-child(1) { animation-delay: 0.5s; }
+        .chart-container:nth-child(2) { animation-delay: 0.6s; }
+        .chart-container:nth-child(3) { animation-delay: 0.7s; }
+        .chart-container:nth-child(4) { animation-delay: 0.8s; }
+        .info-card { animation-delay: 0.9s; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .page-header {
+                padding: 1.5rem;
+                text-align: center;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+            }
+            
+            .metric-card .card-body {
+                padding: 1.5rem 1rem;
+            }
+            
+            .chart-container {
+                padding: 1.5rem;
+                margin-bottom: 1rem;
+            }
+            
+            .refresh-btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Highcharts personalización */
+        .highcharts-container {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .highcharts-title {
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 600 !important;
+        }
+
+        .highcharts-axis-labels text {
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 500 !important;
+        }
+
+        /* Leaflet map height */
+        #gpsMap { height: 360px; border-radius: 12px; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-heartbeat me-3"></i>
+                Sistema de Monitoreo
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user me-2"></i>
+                        <span id="userName">Usuario</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <!-- Header con botón de actualización -->
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="page-title">
+                    <i class="fas fa-tachometer-alt me-3"></i>Dashboard de Monitoreo
+                </h2>
+                <button class="btn refresh-btn" onclick="refreshData()">
+                    <i class="fas fa-sync-alt me-2"></i>Actualizar Datos
+                </button>
+            </div>
+        </div>
+
+        <!-- Métricas actuales -->
+        <div class="row mb-5">
+            <div class="col-md-3 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-heartbeat"></i>
+                        <div class="metric-value" id="currentHR">--</div>
+                        <div class="metric-label">Frecuencia Cardíaca (bpm)</div>
+                        <div class="mt-2">
+                            <span class="status-indicator" id="hrStatus"></span>
+                            <small id="hrStatusText">Cargando...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-tint"></i>
+                        <div class="metric-value" id="currentBP">--</div>
+                        <div class="metric-label">Presión Arterial (mmHg)</div>
+                        <div class="mt-2">
+                            <span class="status-indicator" id="bpStatus"></span>
+                            <small id="bpStatusText">Cargando...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-route"></i>
+                        <div class="metric-value" id="totalDistance">--</div>
+                        <div class="metric-label">Distancia Recorrida (m)</div>
+                        <div class="mt-2">
+                            <span class="status-indicator status-normal"></span>
+                            <small>Últimas 24h</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div class="metric-value" id="riskScore">--</div>
+                        <div class="metric-label">Score de Riesgo</div>
+                        <div class="mt-2">
+                            <span class="status-indicator" id="riskStatus"></span>
+                            <small id="riskStatusText">Cargando...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="row mb-5">
+            <!-- Gráfico de Frecuencia Cardíaca -->
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5 class="chart-title">
+                        <i class="fas fa-heartbeat"></i>Frecuencia Cardíaca en Tiempo Real
+                    </h5>
+                    <div id="heartRateChart" style="height: 300px;"></div>
+                </div>
+            </div>
+            
+            <!-- Gráfico de Presión Arterial -->
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5 class="chart-title">
+                        <i class="fas fa-tint"></i>Presión Arterial
+                    </h5>
+                    <div id="bloodPressureChart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <!-- Gráfico de Actividad -->
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5 class="chart-title">
+                        <i class="fas fa-running"></i>Actividad Diaria
+                    </h5>
+                    <div id="activityChart" style="height: 300px;"></div>
+                </div>
+            </div>
+            
+            <!-- Gráfico de Riesgo -->
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5 class="chart-title">
+                        <i class="fas fa-shield-alt"></i>Evolución del Riesgo
+                    </h5>
+                    <div id="riskChart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mapa GPS -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title">
+                        <i class="fas fa-map-marker-alt"></i>Recorrido GPS (últimas 24h)
+                    </h5>
+                    <div id="gpsMap"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información adicional -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card info-card">
+                    <div class="card-body">
+                        <h5 class="info-title">
+                            <i class="fas fa-info-circle"></i>Información del Sistema
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Última actualización:</strong> <span id="lastUpdate">--</span></p>
+                                <p><strong>Estado del sistema:</strong> <span class="badge bg-success">Activo</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Datos de GPS:</strong> <span class="badge bg-info">Disponibles</span></p>
+                                <p><strong>Análisis de riesgo:</strong> <span class="badge bg-warning">En tiempo real</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Variables globales
+        let currentUser = null;
+        let heartRateChart = null;
+        let bloodPressureChart = null;
+        let activityChart = null;
+        let riskChart = null;
+        let gpsMap = null;
+        let gpsPath = null;
+        let gpsMarkers = [];
+        let gpsPointsLayer = null;
+
+        // Inicializar dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar autenticación
+            const user = localStorage.getItem('user');
+            if (!user) {
+                window.location.href = 'http://localhost:5003/';
+                return;
+            }
+            
+            currentUser = JSON.parse(user);
+            document.getElementById('userName').textContent = currentUser.name;
+            
+            // Inicializar gráficos
+            initializeCharts();
+            ensureMapInitialized();
+            
+            // Cargar datos iniciales
+            refreshData();
+            
+            // Actualizar datos cada 30 segundos
+            setInterval(refreshData, 30000);
+        });
+
+        function ensureMapInitialized() {
+            if (gpsMap) return;
+            gpsMap = L.map('gpsMap');
+            const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            });
+            tiles.addTo(gpsMap);
+            // Pane para puntos por encima de la ruta
+            gpsMap.createPane('pointsPane');
+            gpsMap.getPane('pointsPane').style.zIndex = 650;
+            // Centro inicial genérico
+            gpsMap.setView([25.6866, -100.3161], 12);
+            // Asegurar cálculo correcto del tamaño una vez visible
+            setTimeout(() => { try { gpsMap.invalidateSize(); } catch(e) {} }, 100);
+        }
+
+        function clearGpsLayers() {
+            if (!gpsMap) return;
+            if (gpsPath) {
+                gpsMap.removeLayer(gpsPath);
+                gpsPath = null;
+            }
+            if (gpsPointsLayer) {
+                gpsMap.removeLayer(gpsPointsLayer);
+                gpsPointsLayer = null;
+            }
+            gpsMarkers.forEach(m => gpsMap.removeLayer(m));
+            gpsMarkers = [];
+        }
+
+        function initializeCharts() {
+            // Gráfico de Frecuencia Cardíaca
+            heartRateChart = Highcharts.chart('heartRateChart', {
+                chart: { 
+                    type: 'line',
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                title: { text: null },
+                xAxis: { 
+                    type: 'datetime',
+                    title: { text: 'Tiempo' },
+                    gridLineColor: '#e2e8f0',
+                    lineColor: '#e2e8f0',
+                    tickColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } }
+                },
+                yAxis: { 
+                    title: { text: 'BPM', style: { color: '#718096' } },
+                    gridLineColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } },
+                    plotBands: [{
+                        from: 60,
+                        to: 100,
+                        color: 'rgba(79, 172, 254, 0.1)',
+                        label: { text: 'Normal', style: { color: '#4facfe' } }
+                    }]
+                },
+                series: [{
+                    name: 'Frecuencia Cardíaca',
+                    data: [],
+                    color: '#667eea',
+                    lineWidth: 3,
+                    marker: { radius: 4 }
+                }],
+                legend: { enabled: false },
+                plotOptions: {
+                    line: {
+                        marker: { enabled: false }
+                    }
+                }
+            });
+
+            // Gráfico de Presión Arterial
+            bloodPressureChart = Highcharts.chart('bloodPressureChart', {
+                chart: { 
+                    type: 'line',
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                title: { text: null },
+                xAxis: { 
+                    type: 'datetime',
+                    title: { text: 'Tiempo', style: { color: '#718096' } },
+                    gridLineColor: '#e2e8f0',
+                    lineColor: '#e2e8f0',
+                    tickColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } }
+                },
+                yAxis: { 
+                    title: { text: 'mmHg', style: { color: '#718096' } },
+                    gridLineColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } },
+                    plotBands: [{
+                        from: 90,
+                        to: 120,
+                        color: 'rgba(79, 172, 254, 0.1)',
+                        label: { text: 'Normal', style: { color: '#4facfe' } }
+                    }]
+                },
+                series: [{
+                    name: 'Sistólica',
+                    data: [],
+                    color: '#667eea',
+                    lineWidth: 3,
+                    marker: { radius: 4 }
+                }, {
+                    name: 'Diastólica',
+                    data: [],
+                    color: '#764ba2',
+                    lineWidth: 3,
+                    marker: { radius: 4 }
+                }],
+                legend: { 
+                    enabled: true,
+                    itemStyle: { color: '#718096' },
+                    itemHoverStyle: { color: '#2d3748' }
+                },
+                plotOptions: {
+                    line: {
+                        marker: { enabled: false }
+                    }
+                }
+            });
+
+            // Gráfico de Actividad
+            activityChart = Highcharts.chart('activityChart', {
+                chart: { 
+                    type: 'column',
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                title: { text: null },
+                xAxis: { 
+                    categories: [],
+                    title: { text: 'Días', style: { color: '#718096' } },
+                    gridLineColor: '#e2e8f0',
+                    lineColor: '#e2e8f0',
+                    tickColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } }
+                },
+                yAxis: { 
+                    title: { text: 'Minutos', style: { color: '#718096' } },
+                    gridLineColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } }
+                },
+                series: [{
+                    name: 'Tiempo Activo',
+                    data: [],
+                    color: '#4facfe'
+                }, {
+                    name: 'Tiempo Sedentario',
+                    data: [],
+                    color: '#718096'
+                }],
+                legend: { 
+                    itemStyle: { color: '#718096' },
+                    itemHoverStyle: { color: '#2d3748' }
+                }
+            });
+
+            // Gráfico de Riesgo
+            riskChart = Highcharts.chart('riskChart', {
+                chart: { 
+                    type: 'line',
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                title: { text: null },
+                xAxis: { 
+                    categories: [],
+                    title: { text: 'Días', style: { color: '#718096' } },
+                    gridLineColor: '#e2e8f0',
+                    lineColor: '#e2e8f0',
+                    tickColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } }
+                },
+                yAxis: { 
+                    title: { text: 'Score de Riesgo', style: { color: '#718096' } },
+                    min: 0,
+                    max: 1,
+                    gridLineColor: '#e2e8f0',
+                    labels: { style: { color: '#718096' } }
+                },
+                series: [{
+                    name: 'Score de Riesgo',
+                    data: [],
+                    color: '#f093fb',
+                    lineWidth: 3,
+                    marker: { radius: 4 }
+                }],
+                legend: { enabled: false },
+                plotOptions: {
+                    line: {
+                        marker: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        async function refreshData() {
+            try {
+                // Obtener datos actuales desde Redis
+                await fetchCurrentVitals();
+                
+                // Obtener datos históricos desde InfluxDB
+                await fetchHistoricalData();
+                
+                // Actualizar timestamp
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                
+            } catch (error) {
+                console.error('Error actualizando datos:', error);
+                showAlert('Error actualizando datos', 'danger');
+            }
+        }
+
+        async function fetchCurrentVitals() {
+            try {
+                const response = await fetch(`http://localhost:5002/api/current-vitals/${currentUser.patient_id}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const vitals = data.data;
+                    
+                    // Actualizar métricas actuales
+                    document.getElementById('currentHR').textContent = vitals.heart_rate || '--';
+                    document.getElementById('currentBP').textContent = 
+                        `${vitals.systolic_blood_pressure || '--'}/${vitals.diastolic_blood_pressure || '--'}`;
+                    
+                    // Actualizar estados
+                    updateHRStatus(vitals.heart_rate);
+                    updateBPStatus(vitals.systolic_blood_pressure, vitals.diastolic_blood_pressure);
+                }
+            } catch (error) {
+                console.error('Error obteniendo datos actuales:', error);
+            }
+        }
+
+        async function fetchHistoricalData() {
+            try {
+                // Obtener datos de Vitals/GPS
+                const vitalsResponse = await fetch(`http://localhost:5002/api/vitals-gps/${currentUser.patient_id}?hours=24`);
+                const vitalsData = await vitalsResponse.text();
+                
+                // Obtener datos de KPIs/Risk
+                const kpisResponse = await fetch(`http://localhost:5002/api/kpis-risk/${currentUser.patient_id}?days=7`);
+                const kpisData = await kpisResponse.text();
+                
+                // Procesar datos XML reales
+                processVitalsData(vitalsData);
+                processKPIsData(kpisData);
+                
+            } catch (error) {
+                console.error('Error obteniendo datos históricos:', error);
+            }
+        }
+
+        function processVitalsData(xmlData) {
+            try {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(xmlData, 'text/xml');
+
+                // 1) Simular datos para los gráficos de Vitals (como antes)
+                const now = Date.now();
+                const heartRateData = [];
+                const bpSystolicData = [];
+                const bpDiastolicData = [];
+                for (let i = 24; i >= 0; i--) {
+                    const time = now - (i * 30 * 60 * 1000); // cada 30 min
+                    const hr = 70 + Math.random() * 20;
+                    const sbp = 110 + Math.random() * 20;
+                    const dbp = 70 + Math.random() * 10;
+                    heartRateData.push([time, Math.round(hr)]);
+                    bpSystolicData.push([time, Math.round(sbp)]);
+                    bpDiastolicData.push([time, Math.round(dbp)]);
+                }
+                heartRateChart.series[0].setData(heartRateData, true);
+                bloodPressureChart.series[0].setData(bpSystolicData, true);
+                bloodPressureChart.series[1].setData(bpDiastolicData, true);
+                const lastHR = heartRateData[heartRateData.length - 1][1];
+                const lastSBP = bpSystolicData[bpSystolicData.length - 1][1];
+                const lastDBP = bpDiastolicData[bpDiastolicData.length - 1][1];
+                document.getElementById('currentHR').textContent = Math.round(lastHR);
+                document.getElementById('currentBP').textContent = `${Math.round(lastSBP)}/${Math.round(lastDBP)}`;
+                updateHRStatus(lastHR);
+                updateBPStatus(lastSBP, lastDBP);
+
+                // GPS -> mapa
+                const gpsRoot = xml.getElementsByTagName('gps')[0];
+                let points = [];
+
+                // Detectar errores de parseo XML
+                const parseError = xml.getElementsByTagName('parsererror')[0];
+                if (parseError) {
+                    console.warn('GPS: parsererror en XML, intentar estrategias alternativas');
+                }
+
+                if (gpsRoot && !parseError) {
+                    const gpsItems = Array.from(gpsRoot.getElementsByTagName('item'));
+                    gpsItems.forEach(item => {
+                        const ts = item.getElementsByTagName('timestamp')[0]?.textContent?.trim();
+                        const latText = (item.getElementsByTagName('lat')[0]?.textContent ?? item.getElementsByTagName('latitude')[0]?.textContent ?? item.getElementsByTagName('Lat')[0]?.textContent ?? '').trim();
+                        const lonText = (item.getElementsByTagName('lon')[0]?.textContent ?? item.getElementsByTagName('longitude')[0]?.textContent ?? item.getElementsByTagName('Lng')[0]?.textContent ?? item.getElementsByTagName('long')[0]?.textContent ?? '').trim();
+                        const lat = parseFloat(latText.replace(',', '.'));
+                        const lon = parseFloat(lonText.replace(',', '.'));
+                        if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon, ts });
+                    });
+                }
+
+                // Fallback 1: el endpoint devolvió HTML (XSL transformado). Parsear tabla HTML.
+                if (!points.length) {
+                    try {
+                        const htmlDoc = new DOMParser().parseFromString(xmlData, 'text/html');
+                        const tables = Array.from(htmlDoc.getElementsByTagName('table'));
+                        for (const table of tables) {
+                            const headerCells = Array.from(table.querySelectorAll('thead tr th'));
+                            const headers = headerCells.map(th => (th.textContent || '').trim().toLowerCase());
+                            const hasLat = headers.some(h => h.includes('lat'));
+                            const hasLon = headers.some(h => h.includes('lon'));
+                            if (!hasLat || !hasLon) continue;
+
+                            // Encontrar índices de columnas
+                            const tsIdx = headers.findIndex(h => h.includes('timestamp'));
+                            const latIdx = headers.findIndex(h => h.includes('lat'));
+                            const lonIdx = headers.findIndex(h => h.includes('lon'));
+
+                            const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+                            const dataRows = bodyRows.length ? bodyRows : Array.from(table.querySelectorAll('tr')).slice(1); // sin header
+                            for (const tr of dataRows) {
+                                const tds = Array.from(tr.querySelectorAll('td'));
+                                if (!tds.length) continue;
+                                const ts = tsIdx >= 0 ? (tds[tsIdx]?.textContent || '').trim() : (tds[0]?.textContent || '').trim();
+                                const latText = latIdx >= 0 ? (tds[latIdx]?.textContent || '').trim() : '';
+                                const lonText = lonIdx >= 0 ? (tds[lonIdx]?.textContent || '').trim() : '';
+                                const lat = parseFloat(latText.replace(',', '.'));
+                                const lon = parseFloat(lonText.replace(',', '.'));
+                                if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon, ts });
+                            }
+
+                            if (points.length) break;
+                        }
+                    } catch (e) {
+                        console.warn('Fallback HTML parse error:', e);
+                    }
+                }
+
+                // Fallback 2: respuesta JSON
+                if (!points.length) {
+                    try {
+                        const json = JSON.parse(xmlData);
+                        if (Array.isArray(json)) {
+                            json.forEach(it => {
+                                const lat = parseFloat((it.lat ?? it.latitude));
+                                const lon = parseFloat((it.lon ?? it.lng ?? it.longitude));
+                                const ts = it.timestamp ?? it.time ?? null;
+                                if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon, ts });
+                            });
+                        } else if (json && typeof json === 'object') {
+                            const arr = json.items ?? json.gps ?? json.data ?? [];
+                            if (Array.isArray(arr)) {
+                                arr.forEach(it => {
+                                    const lat = parseFloat((it.lat ?? it.latitude));
+                                    const lon = parseFloat((it.lon ?? it.lng ?? it.longitude));
+                                    const ts = it.timestamp ?? it.time ?? null;
+                                    if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon, ts });
+                                });
+                            }
+                        }
+                    } catch(e) {
+                        // no es JSON
+                    }
+                }
+
+                // Fallback 3: extraer por regex de cualquier string
+                if (!points.length) {
+                    const latMatches = [...xmlData.matchAll(/<\s*(?:lat|latitude|Lat)\s*>\s*([+-]?[0-9]+[\.,]?[0-9]*)\s*<\s*\/\s*(?:lat|latitude|Lat)\s*>/gi)];
+                    const lonMatches = [...xmlData.matchAll(/<\s*(?:lon|longitude|Lng|long)\s*>\s*([+-]?[0-9]+[\.,]?[0-9]*)\s*<\s*\/\s*(?:lon|longitude|Lng|long)\s*>/gi)];
+                    const tsMatches = [...xmlData.matchAll(/<\s*timestamp\s*>\s*([^<]+)\s*<\s*\/\s*timestamp\s*>/gi)];
+                    const count = Math.min(latMatches.length, lonMatches.length);
+                    for (let i = 0; i < count; i++) {
+                        const lat = parseFloat((latMatches[i][1] || '').replace(',', '.'));
+                        const lon = parseFloat((lonMatches[i][1] || '').replace(',', '.'));
+                        const ts = tsMatches[i]?.[1]?.trim() ?? null;
+                        if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon, ts });
+                    }
+                }
+
+                if (points.length) {
+                    console.log(`GPS: puntos válidos = ${points.length}`);
+                    ensureMapInitialized();
+                    clearGpsLayers();
+                    const latlngs = points.map(p => [p.lat, p.lon]);
+                    gpsPath = L.polyline(latlngs, { color: '#0ea5e9', weight: 6, opacity: 0.85 }).addTo(gpsMap);
+                    gpsPointsLayer = L.layerGroup([], { pane: 'pointsPane' }).addTo(gpsMap);
+                    const maxMarkers = 1000;
+                    const step = Math.max(1, Math.floor(points.length / maxMarkers));
+                    for (let i = 0; i < points.length; i += step) {
+                        const p = points[i];
+                        const marker = L.circleMarker([p.lat, p.lon], {
+                            pane: 'pointsPane',
+                            radius: 5,
+                            color: '#3b82f6',
+                            weight: 2,
+                            opacity: 1,
+                            fillColor: '#1e3a8a',
+                            fillOpacity: 0.95
+                        });
+                        if (p.ts) marker.bindTooltip(new Date(p.ts).toLocaleString(), { permanent: false, direction: 'top', opacity: 0.95 });
+                        marker.addTo(gpsPointsLayer);
+                    }
+                    const start = points[0];
+                    const startMarker = L.circleMarker([start.lat, start.lon], { pane: 'pointsPane', radius: 7, color: '#16a34a', weight: 3, fillColor: '#22c55e', fillOpacity: 1 })
+                        .bindPopup(`<strong>Inicio</strong><br>${start.ts ? new Date(start.ts).toLocaleString() : ''}`)
+                        .addTo(gpsMap);
+                    gpsMarkers.push(startMarker);
+                    if (points.length > 1) {
+                        const end = points[points.length - 1];
+                        const endMarker = L.circleMarker([end.lat, end.lon], { pane: 'pointsPane', radius: 8, color: '#dc2626', weight: 3, fillColor: '#ef4444', fillOpacity: 1 })
+                            .bindPopup(`<strong>Fin</strong><br>${end.ts ? new Date(end.ts).toLocaleString() : ''}`)
+                            .addTo(gpsMap);
+                        gpsMarkers.push(endMarker);
+                        const bounds = L.latLngBounds(latlngs);
+                        gpsMap.fitBounds(bounds, { padding: [30, 30] });
+                    } else {
+                        gpsMap.setView([start.lat, start.lon], 15);
+                    }
+                    setTimeout(() => { try { gpsMap.invalidateSize(); } catch(e) {} }, 100);
+                } else {
+                    console.warn('GPS: sin puntos válidos (ni XML ni tabla HTML ni JSON ni regex). Primeros 300 caracteres:', String(xmlData).slice(0, 300));
+                }
+            } catch (e) {
+                console.error('Error procesando vitals/gps:', e);
+            }
+        }
+
+        function processKPIsData(xmlData) {
+            // Revertir a datos simulados para KPIs/Risk (como antes)
+            const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+            const activeData = [];
+            const sedentaryData = [];
+            const riskData = [];
+            
+            days.forEach(() => {
+                activeData.push(Math.round(120 + Math.random() * 60));
+                sedentaryData.push(Math.round(600 + Math.random() * 200));
+                riskData.push(Math.round((0.2 + Math.random() * 0.6) * 100) / 100);
+            });
+            
+            activityChart.xAxis[0].setCategories(days, false);
+            activityChart.series[0].setData(activeData, false);
+            activityChart.series[1].setData(sedentaryData, true);
+            
+            riskChart.xAxis[0].setCategories(days, false);
+            riskChart.series[0].setData(riskData, true);
+            
+            const totalDistance = activeData.reduce((sum, val) => sum + val, 0) * 0.1; // aproximación
+            const avgRisk = riskData.reduce((sum, val) => sum + val, 0) / riskData.length;
+            
+            document.getElementById('totalDistance').textContent = Math.round(totalDistance);
+            document.getElementById('riskScore').textContent = avgRisk.toFixed(2);
+            updateRiskStatus(avgRisk);
+        }
+
+        function updateHRStatus(hr) {
+            const statusEl = document.getElementById('hrStatus');
+            const textEl = document.getElementById('hrStatusText');
+            
+            if (hr < 60) {
+                statusEl.className = 'status-indicator status-warning';
+                textEl.textContent = 'Bajo';
+            } else if (hr > 100) {
+                statusEl.className = 'status-indicator status-danger';
+                textEl.textContent = 'Alto';
+            } else {
+                statusEl.className = 'status-indicator status-normal';
+                textEl.textContent = 'Normal';
+            }
+        }
+
+        function updateBPStatus(sbp, dbp) {
+            const statusEl = document.getElementById('bpStatus');
+            const textEl = document.getElementById('bpStatusText');
+            
+            if (sbp > 140 || dbp > 90) {
+                statusEl.className = 'status-indicator status-danger';
+                textEl.textContent = 'Alta';
+            } else if (sbp < 90 || dbp < 60) {
+                statusEl.className = 'status-indicator status-warning';
+                textEl.textContent = 'Baja';
+            } else {
+                statusEl.className = 'status-indicator status-normal';
+                textEl.textContent = 'Normal';
+            }
+        }
+
+        function updateRiskStatus(risk) {
+            const statusEl = document.getElementById('riskStatus');
+            const textEl = document.getElementById('riskStatusText');
+            
+            if (risk < 0.3) {
+                statusEl.className = 'status-indicator status-normal';
+                textEl.textContent = 'Bajo';
+            } else if (risk < 0.7) {
+                statusEl.className = 'status-indicator status-warning';
+                textEl.textContent = 'Medio';
+            } else {
+                statusEl.className = 'status-indicator status-danger';
+                textEl.textContent = 'Alto';
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.createElement('div');
+            alertContainer.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertContainer.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertContainer);
+            
+            setTimeout(() => {
+                if (alertContainer.parentNode) {
+                    alertContainer.parentNode.removeChild(alertContainer);
+                }
+            }, 5000);
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.href = 'http://localhost:5003/';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+CONSULTA COMPLEJA #2: DASHBOARD CON AGREGACIÓN DE MÚLTIPLES MEDIDAS
+==============================================================================
+
+ARCHIVO: microservicios/Dashboards/app.py
+FUNCIÓN: get_kpis_risk_data_from_influxdb()
+COMPLEJIDAD: ALTA - Combina múltiples mediciones, rangos temporales y procesamiento de datos
+
+DESCRIPCIÓN:
+Esta consulta obtiene datos de KPIs y Risk Inference para un dashboard médico, combinando
+múltiples mediciones de InfluxDB y procesando los datos para presentación en tiempo real.
+
+CONSULTAS INFLUXDB UTILIZADAS:
+
+1. QUERY PARA KPIs DIARIOS:
+```flux
+from(bucket: "my_app_processed_data")
+  |> range(start: {start_time}, stop: {end_time})
+  |> filter(fn: (r) => r["_measurement"] == "KPI_daily")
+  |> filter(fn: (r) => r["patient_id"] == "{patient_id}")
+  |> sort(columns: ["_time"])
+```
+
+2. QUERY PARA INFERENCIA DE RIESGO:
+```flux
+from(bucket: "my_app_processed_data")
+  |> range(start: {start_time}, stop: {end_time})
+  |> filter(fn: (r) => r["_measurement"] == "Risk_inference")
+  |> filter(fn: (r) => r["patient_id"] == "{patient_id}")
+  |> sort(columns: ["_time"])
+```
+
+CARACTERÍSTICAS COMPLEJAS:
+
+1. RANGOS TEMPORALES DINÁMICOS:
+   - Configuración flexible de días (1-30 días)
+   - Cálculo automático de start_time y end_time
+   - Formato ISO 8601 para timestamps
+
+2. PROCESAMIENTO DE MÚLTIPLES MEDICIONES:
+   - KPI_daily: Métricas de salud diarias
+   - Risk_inference: Scores de riesgo y categorías
+   - Agrupación por timestamp para correlación temporal
+
+3. AGRUPACIÓN Y TRANSFORMACIÓN DE DATOS:
+   - Agrupación temporal por timestamp
+   - Preservación de metadatos (model_name, model_version)
+   - Conversión a formato JSON estructurado
+
+4. MANEJO DE METADATOS:
+   - Extracción de tags: model_name, model_version
+   - Preservación de campos dinámicos
+   - Estructuración jerárquica de datos
+
+ESTRUCTURA DE DATOS PROCESADOS:
+
+1. DATOS DE KPIs:
+   - Timestamp ISO
+   - Campos dinámicos según medición
+   - Ordenamiento cronológico
+
+2. DATOS DE RIESGO:
+   - Timestamp ISO
+   - Metadatos del modelo (nombre, versión)
+   - Scores y categorías de riesgo
+
+3. METADATOS DEL RANGO TEMPORAL:
+   - start_time: Inicio del período
+   - end_time: Fin del período
+   - Formato ISO 8601
+
+BUCKET FUENTE: my_app_processed_data
+BUCKET DESTINO: Respuesta JSON/XML
+FRECUENCIA: Bajo demanda (dashboard en tiempo real)
+
+FUNCIONALIDADES ADICIONALES:
+
+1. TRANSFORMACIÓN A XML:
+   - Creación de elementos XML dinámicos
+   - Estructura jerárquica de datos
+   - Timestamp de generación
+
+2. MANEJO DE ERRORES:
+   - Logging detallado de errores
+   - Continuación en modo degradado
+   - Respuestas de error estructuradas
+
+3. OPTIMIZACIÓN DE CONSULTAS:
+   - Filtrado por paciente específico
+   - Ordenamiento temporal
+   - Límites de rango configurables
+
+CASOS DE USO:
+- Dashboard médico en tiempo real
+- Análisis de tendencias de salud
+- Monitoreo de riesgo del paciente
+- Generación de reportes XML
+- API para aplicaciones frontend
+
+NOTAS TÉCNICAS:
+- Utiliza InfluxDB Query API
+- Procesamiento asíncrono de múltiples consultas
+- Agrupación temporal eficiente
+- Manejo de campos dinámicos
+- Conversión de formatos de datos

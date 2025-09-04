@@ -1,0 +1,44 @@
+# Archivo: docker-compose.yml
+# Define y ejecuta todos los servicios de la aplicación con un solo comando: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # Servicio de PostgreSQL para datos relacionales
+  postgres:
+    container_name: my-postgres
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hoonigans
+      POSTGRES_PASSWORD: "666"
+      POSTGRES_DB: "General information users"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # Servicio de InfluxDB para todos los datos de series de tiempo
+  influxdb:
+    container_name: my-influxdb
+    image: influxdb:latest
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: Trodat74
+      DOCKER_INFLUXDB_INIT_ORG: my-org
+      DOCKER_INFLUXDB_INIT_BUCKETS: my_app_raw_data,my_app_processed_data
+
+  redis:
+    image: redis:7
+    container_name: my-redis
+    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  influxdb-data:
+  redis-data:
