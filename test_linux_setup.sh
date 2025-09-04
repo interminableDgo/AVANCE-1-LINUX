@@ -59,20 +59,6 @@ check_container() {
     fi
 }
 
-# Función para verificar API
-check_api() {
-    local url=$1
-    local service_name=$2
-    
-    if curl -s "$url" >/dev/null 2>&1; then
-        success "$service_name: Responde correctamente"
-        return 0
-    else
-        error "$service_name: No responde"
-        return 1
-    fi
-}
-
 # Función principal de pruebas
 main() {
     echo "========================================"
@@ -114,31 +100,12 @@ main() {
     log "Verificando APIs..."
     echo ""
     
-    # Verificar APIs (con timeout para evitar bloqueos)
-    timeout 10 bash -c "check_api 'http://localhost:5004/health' 'Backend Go Health'" || {
-        warning "Backend Go Health: Timeout o no responde"
-        all_tests_passed=false
-    }
-    
-    timeout 10 bash -c "check_api 'http://localhost:5000/' 'AltaDeDatos'" || {
-        warning "AltaDeDatos: Timeout o no responde"
-        all_tests_passed=false
-    }
-    
-    timeout 10 bash -c "check_api 'http://localhost:5001/' 'CalculoMetricas'" || {
-        warning "CalculoMetricas: Timeout o no responde"
-        all_tests_passed=false
-    }
-    
-    timeout 10 bash -c "check_api 'http://localhost:5002/' 'Dashboards'" || {
-        warning "Dashboards: Timeout o no responde"
-        all_tests_passed=false
-    }
-    
-    timeout 10 bash -c "check_api 'http://localhost:5003/' 'InicioSesion'" || {
-        warning "InicioSesion: Timeout o no responde"
-        all_tests_passed=false
-    }
+    # Verificar APIs con curl y timeout integrado
+    curl --silent --show-error --max-time 5 http://localhost:5004/health >/dev/null && success "Backend Go Health: Responde correctamente" || { warning "Backend Go Health: No responde"; all_tests_passed=false; }
+    curl --silent --show-error --max-time 5 http://localhost:5000/ >/dev/null && success "AltaDeDatos: Responde correctamente" || { warning "AltaDeDatos: No responde"; all_tests_passed=false; }
+    curl --silent --show-error --max-time 5 http://localhost:5001/ >/dev/null && success "CalculoMetricas: Responde correctamente" || { warning "CalculoMetricas: No responde"; all_tests_passed=false; }
+    curl --silent --show-error --max-time 5 http://localhost:5002/ >/dev/null && success "Dashboards: Responde correctamente" || { warning "Dashboards: No responde"; all_tests_passed=false; }
+    curl --silent --show-error --max-time 5 http://localhost:5003/ >/dev/null && success "InicioSesion: Responde correctamente" || { warning "InicioSesion: No responde"; all_tests_passed=false; }
     
     echo ""
     log "Verificando bases de datos..."
