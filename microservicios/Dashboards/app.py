@@ -30,7 +30,7 @@ def serve_xsl(filename):
         return Response('<error>No se pudo cargar la hoja de estilo</error>', mimetype='application/xml'), 404
 
 # Configuración de Redis
-REDIS_HOST = os.getenv("REDIS_HOST", "my-redis")
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
 REDIS_DB = 0
 
@@ -39,7 +39,7 @@ INFLUX_BUCKET_RAW = "my_app_raw_data"
 INFLUX_BUCKET_PROCESSED = "my_app_processed_data"
 INFLUX_ORG = "my-org"
 INFLUX_TOKEN = "PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg=="
-INFLUX_URL = os.getenv("INFLUX_URL", "http://my-influxdb:8086")
+INFLUX_URL = os.getenv("INFLUX_URL", "http://localhost:8086")
 
 class DashboardService:
     def __init__(self):
