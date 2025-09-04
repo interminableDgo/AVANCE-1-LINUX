@@ -8,6 +8,7 @@ from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 import json
 import logging
+import os
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuración de Redis
-REDIS_HOST = "localhost"
+REDIS_HOST = os.getenv("REDIS_HOST", "my-redis")
 REDIS_PORT = 6379
 REDIS_DB = 0
 
@@ -24,7 +25,7 @@ REDIS_DB = 0
 INFLUX_BUCKET = "my_app_raw_data"
 INFLUX_ORG = "my-org"
 INFLUX_TOKEN = "PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg=="
-INFLUX_URL = "http://localhost:8086"
+INFLUX_URL = os.getenv("INFLUX_URL", "http://my-influxdb:8086")
 
 class DataManager:
     def __init__(self):

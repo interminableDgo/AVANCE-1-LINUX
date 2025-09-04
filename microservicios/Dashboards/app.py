@@ -12,8 +12,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-# Habilitar CORS para permitir peticiones desde http://localhost:5003 (InicioSesion/frontend)
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5003", "http://127.0.0.1:5003", "*"]}})
+# Habilitar CORS para permitir peticiones desde el origen actual
+CORS(app, resources={r"/api/*": {"origins": ["*", "http://localhost:5003", "http://127.0.0.1:5003"]}})
 
 # (XSL habilitado): servir archivos XSL para que los XML apliquen estilo en el navegador
 @app.route('/xsl/<path:filename>')
@@ -30,7 +30,7 @@ def serve_xsl(filename):
         return Response('<error>No se pudo cargar la hoja de estilo</error>', mimetype='application/xml'), 404
 
 # Configuración de Redis
-REDIS_HOST = "localhost"
+REDIS_HOST = os.getenv("REDIS_HOST", "my-redis")
 REDIS_PORT = 6379
 REDIS_DB = 0
 
@@ -39,7 +39,7 @@ INFLUX_BUCKET_RAW = "my_app_raw_data"
 INFLUX_BUCKET_PROCESSED = "my_app_processed_data"
 INFLUX_ORG = "my-org"
 INFLUX_TOKEN = "PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg=="
-INFLUX_URL = "http://localhost:8086"
+INFLUX_URL = os.getenv("INFLUX_URL", "http://my-influxdb:8086")
 
 class DashboardService:
     def __init__(self):

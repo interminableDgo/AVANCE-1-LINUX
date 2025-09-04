@@ -790,8 +790,8 @@
         // Ver datos del usuario
         function viewUserData(patientId) {
             // Abrir enlaces a microservicios en nuevas pestañas
-            window.open(`http://localhost:5002/api/vitals-gps/${patientId}?hours=24`, '_blank');
-            window.open(`http://localhost:5002/api/kpis-risk/${patientId}?days=7`, '_blank');
+            window.open(`http://${window.location.hostname}:5002/api/vitals-gps/${patientId}?hours=24`, '_blank');
+            window.open(`http://${window.location.hostname}:5002/api/kpis-risk/${patientId}?days=7`, '_blank');
         }
 
         // Funciones auxiliares
@@ -867,7 +867,7 @@
                 // Redirigir a la página de login o inicio
                 setTimeout(() => {
                     // Puedes cambiar esta URL por la que prefieras
-                    window.location.href = 'http://localhost:5003/';
+                    window.location.href = `http://${window.location.hostname}:5003/`;
                 }, 1500);
             }
         }

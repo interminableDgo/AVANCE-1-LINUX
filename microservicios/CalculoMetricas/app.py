@@ -7,6 +7,7 @@ import time
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 import logging
+import os
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,7 @@ INFLUX_BUCKET_RAW = "my_app_raw_data"
 INFLUX_BUCKET_PROCESSED = "my_app_processed_data"
 INFLUX_ORG = "my-org"
 INFLUX_TOKEN = "PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg=="
-INFLUX_URL = "http://localhost:8086"
+INFLUX_URL = os.getenv("INFLUX_URL", "http://my-influxdb:8086")
 
 # Paciente por defecto
 DEFAULT_PATIENT_ID = "20250831-5f21-4f32-8e12-28e441467a18"

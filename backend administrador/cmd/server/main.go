@@ -459,13 +459,13 @@ func main() {
 	// Configuración de PostgreSQL
 	pgURL := os.Getenv("PG_URL")
 	if pgURL == "" {
-		pgURL = "postgres://hoonigans:666@localhost:5432/General%20information%20users"
+		pgURL = "postgres://hoonigans:666@my-postgres:5432/General%20information%20users"
 	}
 
 	// Configuración de InfluxDB
 	influxURL := os.Getenv("INFLUX_URL")
 	if influxURL == "" {
-		influxURL = "http://localhost:8086"
+		influxURL = "http://my-influxdb:8086"
 	}
 
 	influxToken := os.Getenv("INFLUX_TOKEN")

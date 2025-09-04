@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuración de PostgreSQL
-POSTGRES_HOST = "localhost"
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "my-postgres")  # default to docker service; fallback handled in DSN
 POSTGRES_PORT = 5432
 POSTGRES_DB = "General information users"
 POSTGRES_USER = "hoonigans"
