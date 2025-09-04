@@ -374,7 +374,16 @@ setup_influxdb() {
     # Preferir estado healthy; luego validar puerto
     wait_container_healthy my-influxdb 180 || true
     wait_for_service "localhost" "8086" "InfluxDB" 180 || true
-    success "InfluxDB configurado (bucket inicial creado por docker-compose)"
+    # Asegurar bucket procesado
+    local INFLUX_TOKEN="PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg=="
+    if ! _docker exec my-influxdb influx bucket list -o my-org -t "$INFLUX_TOKEN" 2>/dev/null | grep -q "my_app_processed_data"; then
+        log "Creando bucket my_app_processed_data..."
+        _docker exec my-influxdb influx bucket create -n my_app_processed_data -o my-org -t "$INFLUX_TOKEN" >/dev/null
+        success "Bucket my_app_processed_data creado"
+    else
+        success "Bucket my_app_processed_data ya existe"
+    fi
+    success "InfluxDB configurado (bucket inicial creado por docker-compose y procesado verificado)"
 }
 
 setup_postgresql() {
