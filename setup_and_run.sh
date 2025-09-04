@@ -226,7 +226,7 @@ services:
 
   influxdb:
     container_name: my-influxdb
-    image: influxdb:latest
+    image: influxdb:2.7
     ports:
       - "8086:8086"
     environment:
@@ -240,11 +240,11 @@ services:
       - influxdb-data:/var/lib/influxdb2
       - influxdb-config:/etc/influxdb2
     healthcheck:
-      test: ["CMD-SHELL", "influx ping -host http://localhost:8086 || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8086/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 60
-      start_period: 120s
+      start_period: 180s
 
   redis:
     image: redis:7
@@ -372,7 +372,7 @@ start_docker_containers() {
 setup_influxdb() {
     log "Configurando InfluxDB..."
     # Preferir estado healthy; luego validar puerto
-    wait_container_healthy my-influxdb 120 || true
+    wait_container_healthy my-influxdb 180 || true
     wait_for_service "localhost" "8086" "InfluxDB" 180 || true
     success "InfluxDB configurado (buckets iniciales creados por docker-compose)"
 }
