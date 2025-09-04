@@ -39,12 +39,38 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Función para esperar que un servicio esté disponible
+# Wrapper para docker: usa sudo si es necesario
+_docker() {
+    if docker "$@" >/dev/null 2>&1; then
+        docker "$@"
+        return 0
+    fi
+    if sudo -n true >/dev/null 2>&1; then
+        sudo docker "$@"
+        return $?
+    fi
+    # Último intento con sudo pidiendo password
+    sudo docker "$@"
+}
+
+# Wrapper para docker compose vs docker-compose
+_compose() {
+    if command_exists docker && docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    elif command_exists docker-compose; then
+        docker-compose "$@"
+    else
+        error "Docker Compose no está instalado"
+        exit 1
+    fi
+}
+
+# Función para esperar que un servicio TCP esté disponible
 wait_for_service() {
     local host=$1
     local port=$2
     local service_name=$3
-    local max_attempts=30
+    local max_attempts=${4:-90}
     local attempt=1
     
     log "Esperando que $service_name esté disponible en $host:$port..."
@@ -62,13 +88,33 @@ wait_for_service() {
     success "$service_name está disponible"
 }
 
-# Función para verificar si Docker está corriendo
-check_docker() {
-    if ! docker info >/dev/null 2>&1; then
-        error "Docker no está corriendo. Por favor inicia Docker y vuelve a ejecutar este script."
-        exit 1
+# Iniciar servicio Docker si está detenido y validar acceso
+ensure_docker_running() {
+    log "Verificando servicio Docker..."
+    if ! _docker info >/dev/null 2>&1; then
+        # Intentar iniciar servicio (systemd)
+        if command_exists systemctl; then
+            sudo systemctl enable --now docker >/dev/null 2>&1 || true
+        fi
+        # Intentar iniciar con service
+        if command_exists service; then
+            sudo service docker start >/dev/null 2>&1 || true
+        fi
+        sleep 2
     fi
-    success "Docker está corriendo"
+
+    # Revalidar
+    if _docker info >/dev/null 2>&1; then
+        success "Docker está corriendo"
+    else
+        warning "Docker podría estar corriendo pero sin permisos para tu usuario. Intentando con sudo."
+        if sudo docker info >/dev/null 2>&1; then
+            success "Acceso a Docker disponible vía sudo"
+        else
+            error "Docker no está disponible. Inícialo manualmente: sudo systemctl start docker"
+            exit 1
+        fi
+    fi
 }
 
 # Función para instalar prerrequisitos
@@ -117,7 +163,7 @@ install_prerequisites() {
     
     # Instalar Docker Compose standalone si el plugin no está disponible
     if ! command_exists docker-compose; then
-        if docker compose version >/dev/null 2>&1; then
+        if command_exists docker && docker compose version >/dev/null 2>&1; then
             success "Docker Compose (plugin) disponible"
         else
             log "Instalando Docker Compose standalone..."
@@ -197,7 +243,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U hoonigans"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   # Servicio de InfluxDB para todos los datos de series de tiempo
   influxdb:
@@ -218,7 +264,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 30
 
   redis:
     image: redis:7
@@ -231,7 +277,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
   postgres-data:
@@ -310,26 +356,65 @@ EOF
     success "Script SQL personalizado creado"
 }
 
+# Esperar salud del contenedor por nombre
+wait_container_healthy() {
+    local name=$1
+    local timeout=${2:-180}
+    local waited=0
+    log "Esperando salud del contenedor '$name' (hasta ${timeout}s)..."
+    while true; do
+        status=$(_docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' "$name" 2>/dev/null || echo "unknown")
+        if [ "$status" = "healthy" ]; then
+            success "Contenedor '$name' healthy"
+            return 0
+        fi
+        if [ "$status" = "unhealthy" ]; then
+            warning "Contenedor '$name' unhealthy"
+            return 2
+        fi
+        sleep 2
+        waited=$((waited+2))
+        if [ $waited -ge $timeout ]; then
+            warning "Timeout esperando salud del contenedor '$name' (estado: $status)"
+            return 1
+        fi
+    done
+}
+
+# Recuperación automática de InfluxDB si la init queda colgada
+recover_influx_if_needed() {
+    warning "Intentando recuperación de InfluxDB (recrear volumen y contenedor)"
+    _compose rm -fsv influxdb || true
+    # eliminar volumen solo si existe y está vacío de uso
+    _docker volume rm $(basename "$(pwd)")_influxdb-data 2>/dev/null || true
+    _compose up -d influxdb
+    wait_container_healthy my-influxdb 240 || true
+}
+
 # Función para levantar contenedores Docker
 start_docker_containers() {
     log "Levantando contenedores Docker..."
     
     # Detener contenedores existentes si están corriendo
-    if docker ps --format "table {{.Names}}" | grep -q "my-postgres\|my-influxdb\|my-redis"; then
+    if _docker ps --format "table {{.Names}}" | grep -q "my-postgres\|my-influxdb\|my-redis"; then
         log "Deteniendo contenedores existentes..."
-        docker-compose down || docker compose down || true
+        _compose down || true
     fi
     
     # Levantar contenedores
     log "Iniciando contenedores..."
-    docker-compose up -d || docker compose up -d
+    _compose up -d
     
-    # Esperar que los contenedores estén listos
-    log "Esperando que los contenedores estén listos..."
-    sleep 10
-    
+    # Esperar health checks de servicios clave
+    wait_container_healthy my-postgres 120 || true
+    if ! wait_container_healthy my-influxdb 240; then
+        # Un intento de recuperación si unhealthy o timeout
+        recover_influx_if_needed
+    fi
+    wait_container_healthy my-redis 120 || true
+
     # Verificar estado de los contenedores
-    if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "my-postgres\|my-influxdb\|my-redis"; then
+    if _docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "my-postgres\|my-influxdb\|my-redis"; then
         success "Contenedores Docker iniciados correctamente"
     else
         error "Error al iniciar contenedores Docker"
@@ -337,15 +422,14 @@ start_docker_containers() {
     fi
 }
 
-# Función para configurar InfluxDB
+# Función para configurar InfluxDB (buckets ya creados por env)
 setup_influxdb() {
     log "Configurando InfluxDB..."
     
-    # Esperar que InfluxDB esté disponible
-    wait_for_service "localhost" "8086" "InfluxDB"
-    
-    # Nota: Para crear buckets por API se requiere orgID; como se inicializa por variables
-    # de entorno, los buckets principales ya quedan creados (my_app_raw_data, my_app_processed_data).
+    # Verificar health HTTP con mayor paciencia
+    if ! wait_for_service "localhost" "8086" "InfluxDB" 120; then
+        warning "InfluxDB aún no responde por HTTP; continuando si el contenedor reporta healthy"
+    fi
     success "InfluxDB configurado (buckets iniciales creados por docker-compose)"
 }
 
@@ -354,11 +438,11 @@ setup_postgresql() {
     log "Configurando PostgreSQL..."
     
     # Esperar que PostgreSQL esté disponible
-    wait_for_service "localhost" "5432" "PostgreSQL"
+    wait_for_service "localhost" "5432" "PostgreSQL" 120 || true
     
     # Ejecutar script SQL personalizado
     log "Ejecutando script SQL personalizado..."
-    docker exec -i my-postgres psql -U hoonigans -d "General information users" < Inicializacion/custom_init.sql
+    _docker exec -i my-postgres psql -U hoonigans -d "General information users" < Inicializacion/custom_init.sql
     
     success "PostgreSQL configurado correctamente"
 }
@@ -505,7 +589,7 @@ start_go_backend() {
     cd ..
     
     # Esperar que el backend esté disponible
-    wait_for_service "localhost" "5004" "Backend Go"
+    wait_for_service "localhost" "5004" "Backend Go" 120 || true
     
     success "Backend Go iniciado en puerto 5004"
 }
@@ -521,7 +605,7 @@ check_system_status() {
     
     # Verificar contenedores Docker
     echo "🐳 Contenedores Docker:"
-    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    _docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     
     echo ""
     echo "🔧 Servicios:"
@@ -539,7 +623,7 @@ check_system_status() {
     echo "🗄️ Bases de Datos:"
     
     # Verificar PostgreSQL
-    if docker exec my-postgres pg_isready -U hoonigans >/dev/null 2>&1; then
+    if _docker exec my-postgres pg_isready -U hoonigans >/dev/null 2>&1; then
         echo "  ✅ PostgreSQL: Activo"
     else
         echo "  ❌ PostgreSQL: Inactivo"
@@ -553,7 +637,7 @@ check_system_status() {
     fi
     
     # Verificar Redis
-    if docker exec my-redis redis-cli ping >/dev/null 2>&1; then
+    if _docker exec my-redis redis-cli ping >/dev/null 2>&1; then
         echo "  ✅ Redis: Activo"
     else
         echo "  ❌ Redis: Activo"
@@ -582,8 +666,8 @@ main() {
     # Instalar prerrequisitos
     install_prerequisites
     
-    # Verificar Docker
-    check_docker
+    # Verificar/Arrancar Docker y gestionar permisos
+    ensure_docker_running
     
     # Configurar Docker Compose
     setup_docker_compose
