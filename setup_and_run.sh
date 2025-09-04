@@ -442,19 +442,34 @@ fill_influxdb_data() {
     fi
 }
 
+# Detectar directorio de backend de forma robusta (con, sin espacio, con guión o guión bajo)
+find_backend_dir() {
+    local candidates=(
+        "backend administrador"
+        "backend_administrador"
+        "backend-administrador"
+        "backend"
+    )
+    for d in "${candidates[@]}"; do
+        if [ -d "$d/cmd/server" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    return 1
+}
+
 compile_go_backend() {
     log "Compilando backend Go..."
-    cd "backend administrador"
-    if ! command_exists go; then
-        export PATH=$PATH:/usr/local/go/bin
+    local BACK_DIR
+    if ! BACK_DIR=$(find_backend_dir); then
+        warning "No se encontró el directorio del backend (cmd/server). Se omite compilación."
+        return 0
     fi
-    if go build -o server ./cmd/server; then
-        success "Backend Go compilado correctamente"
-    else
-        error "Error al compilar el backend Go"
-        exit 1
-    fi
-    cd ..
+    if ! command_exists go; then export PATH=$PATH:/usr/local/go/bin; fi
+    ( cd "$BACK_DIR" && go build -o server ./cmd/server ) && success "Backend Go compilado correctamente" || { error "Error al compilar el backend Go"; exit 1; }
+    # Guardar ruta detectada para el arranque
+    echo "$BACK_DIR" > .backend_dir
 }
 
 start_microservices() {
@@ -488,9 +503,13 @@ start_microservices() {
 
 start_go_backend() {
     log "Iniciando backend Go..."
-    cd "backend administrador"
-    nohup ./server > "../BackendGo.log" 2>&1 &
-    cd ..
+    local BACK_DIR=""
+    [ -f .backend_dir ] && BACK_DIR=$(cat .backend_dir || true)
+    if [ -z "$BACK_DIR" ] || [ ! -x "$BACK_DIR/server" ]; then
+        warning "No se encontró binario de backend Go. Se omite inicio del backend."
+        return 0
+    fi
+    ( cd "$BACK_DIR" && nohup ./server > "../BackendGo.log" 2>&1 & )
     wait_for_service "localhost" "5004" "Backend Go" 180 || true
     success "Backend Go iniciado en puerto 5004"
 }
