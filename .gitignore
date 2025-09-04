@@ -85,10 +85,6 @@ logs/
 # llenado_GPS_Vitals_30seg_InfluxBDbucket.py
 # llenado_KPIs_Risk_Diario_InfluxBDbucket.py
 
-# Archivos ejecutables compilados
-server.exe
-server
-
 # Archivos de Docker Compose generados
 docker-compose.override.yml
 
