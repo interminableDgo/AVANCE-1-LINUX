@@ -234,7 +234,7 @@ services:
       DOCKER_INFLUXDB_INIT_USERNAME: admin
       DOCKER_INFLUXDB_INIT_PASSWORD: Trodat74
       DOCKER_INFLUXDB_INIT_ORG: my-org
-      DOCKER_INFLUXDB_INIT_BUCKETS: my_app_raw_data,my_app_processed_data
+      DOCKER_INFLUXDB_INIT_BUCKET: my_app_raw_data
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg==
     volumes:
       - influxdb-data:/var/lib/influxdb2
@@ -374,7 +374,7 @@ setup_influxdb() {
     # Preferir estado healthy; luego validar puerto
     wait_container_healthy my-influxdb 180 || true
     wait_for_service "localhost" "8086" "InfluxDB" 180 || true
-    success "InfluxDB configurado (buckets iniciales creados por docker-compose)"
+    success "InfluxDB configurado (bucket inicial creado por docker-compose)"
 }
 
 setup_postgresql() {
