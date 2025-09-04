@@ -83,29 +83,50 @@ install_prerequisites() {
     log "Instalando paquetes básicos..."
     sudo apt install -y curl wget git unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release netcat-openbsd
     
+    # Detectar distro y codename para repos de Docker
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+    fi
+    DOCKER_DIST="ubuntu"
+    DOCKER_CODENAME="${UBUNTU_CODENAME:-$(lsb_release -cs || true)}"
+    if [ "${ID}" = "debian" ] || grep -qi debian /etc/os-release 2>/dev/null; then
+        DOCKER_DIST="debian"
+        DOCKER_CODENAME="${VERSION_CODENAME:-$(lsb_release -cs || true)}"
+    fi
+
     # Instalar Docker si no está instalado
     if ! command_exists docker; then
-        log "Instalando Docker..."
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        log "Instalando Docker (${DOCKER_DIST} ${DOCKER_CODENAME})..."
+        # Keyring
+        curl -fsSL https://download.docker.com/linux/${DOCKER_DIST}/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        # Limpiar posibles listas incorrectas
+        if [ -f /etc/apt/sources.list.d/docker.list ]; then
+            sudo rm -f /etc/apt/sources.list.d/docker.list
+        fi
+        # Añadir repo correcto
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${DOCKER_DIST} ${DOCKER_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt update
         sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
         
         # Agregar usuario actual al grupo docker
-        sudo usermod -aG docker $USER
-        success "Docker instalado. Por favor reinicia la sesión o ejecuta: newgrp docker"
+        sudo usermod -aG docker $USER || true
+        success "Docker instalado. Si es tu primera instalación, reinicia sesión o ejecuta: newgrp docker"
     else
         success "Docker ya está instalado"
     fi
     
-    # Instalar Docker Compose si no está instalado
+    # Instalar Docker Compose standalone si el plugin no está disponible
     if ! command_exists docker-compose; then
-        log "Instalando Docker Compose..."
-        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        success "Docker Compose instalado"
+        if docker compose version >/dev/null 2>&1; then
+            success "Docker Compose (plugin) disponible"
+        else
+            log "Instalando Docker Compose standalone..."
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            success "Docker Compose standalone instalado"
+        fi
     else
-        success "Docker Compose ya está instalado"
+        success "Docker Compose standalone ya está instalado"
     fi
     
     # Instalar Go si no está instalado
@@ -296,12 +317,12 @@ start_docker_containers() {
     # Detener contenedores existentes si están corriendo
     if docker ps --format "table {{.Names}}" | grep -q "my-postgres\|my-influxdb\|my-redis"; then
         log "Deteniendo contenedores existentes..."
-        docker-compose down
+        docker-compose down || docker compose down || true
     fi
     
     # Levantar contenedores
     log "Iniciando contenedores..."
-    docker-compose up -d
+    docker-compose up -d || docker compose up -d
     
     # Esperar que los contenedores estén listos
     log "Esperando que los contenedores estén listos..."
@@ -323,28 +344,9 @@ setup_influxdb() {
     # Esperar que InfluxDB esté disponible
     wait_for_service "localhost" "8086" "InfluxDB"
     
-    # Crear buckets si no existen
-    log "Verificando buckets de InfluxDB..."
-    
-    # Verificar bucket raw_data
-    if ! curl -s "http://localhost:8086/api/v2/buckets?org=my-org" -H "Authorization: Token PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg==" | grep -q "my_app_raw_data"; then
-        log "Creando bucket my_app_raw_data..."
-        curl -X POST "http://localhost:8086/api/v2/buckets" \
-            -H "Authorization: Token PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg==" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "my_app_raw_data", "orgID": "my-org", "retentionRules": []}'
-    fi
-    
-    # Verificar bucket processed_data
-    if ! curl -s "http://localhost:8086/api/v2/buckets?org=my-org" -H "Authorization: Token PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg==" | grep -q "my_app_processed_data"; then
-        log "Creando bucket my_app_processed_data..."
-        curl -X POST "http://localhost:8086/api/v2/buckets" \
-            -H "Authorization: Token PpCwdSIMJdtVNgnnghBtDll0Q7KKRWzOm-LrSyCAOEo5jaVix2-NP0VPNkCoM_ztd4ZzsZzuyPi5Iuk9CD0ZCg==" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "my_app_processed_data", "orgID": "my-org", "retentionRules": []}'
-    fi
-    
-    success "InfluxDB configurado correctamente"
+    # Nota: Para crear buckets por API se requiere orgID; como se inicializa por variables
+    # de entorno, los buckets principales ya quedan creados (my_app_raw_data, my_app_processed_data).
+    success "InfluxDB configurado (buckets iniciales creados por docker-compose)"
 }
 
 # Función para configurar PostgreSQL
